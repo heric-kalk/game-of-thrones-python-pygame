@@ -16,6 +16,9 @@ class Player:
         self.sprite_esq2   = pygame.image.load('assets/image/jonsnow/esquerda2.png').convert_alpha()
         self.sprite_esq3   = pygame.image.load('assets/image/jonsnow/esquerda3.png').convert_alpha()
 
+        self.grama_image = pygame.image.load('assets/image/cenario/grama.png').convert_alpha()
+        self.tile_size = self.grama_image.get_width()
+
         self.image = self.sprite_parado
         
         self.rect = self.image.get_rect()
@@ -55,6 +58,22 @@ class Player:
         if keys[pygame.K_s]:
             move_y += 1
 
+        if keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]:
+            move_x *= 1.5
+            move_y *= 1.5
+            self.tempo_animacao_baixo = 125
+            self.tempo_animacao_cima = 125
+            self.tempo_animacao_dir = 125
+            self.tempo_animacao_esq = 125
+        else:
+            self.tempo_animacao_baixo = 250
+            self.tempo_animacao_cima = 250
+            self.tempo_animacao_dir = 250
+            self.tempo_animacao_esq = 250
+
+        pos_anterior_x = self.rect.x
+        pos_anterior_y = self.rect.y
+
         if move_x != 0 and move_y != 0:
             self.rect.x += int(move_x * (self.speed * 0.8))
             self.rect.y += int(move_y * (self.speed * 0.8))
@@ -71,23 +90,27 @@ class Player:
         if self.rect.bottom > WIN_HEIGHT:
             self.rect.bottom = WIN_HEIGHT
 
-        if move_x == 0 and move_y == 0:
+        andou_x = self.rect.x != pos_anterior_x
+        andou_y = self.rect.y != pos_anterior_y
+
+        if not andou_x and not andou_y:
             self.image = self.sprite_parado
             self.direcao_atual = "parado"
-        elif move_x != 0 and move_y != 0:
-            if move_x < 0:
-                self.animar_esquerda()
-            else:
-                self.animar_direita()
         else:
-            if move_x < 0:
+            if move_x < 0 and andou_x:
                 self.animar_esquerda()
-            elif move_x > 0:
+            elif move_x > 0 and andou_x:
                 self.animar_direita()
-            elif move_y < 0:
+            elif move_y < 0 and andou_y:
                 self.animar_cima()
-            elif move_y > 0:
+            elif move_y > 0 and andou_y:
                 self.animar_baixo()
+            else:
+                if move_x != 0 and move_y != 0:
+                    if move_x < 0:
+                        self.animar_esquerda()
+                    else:
+                        self.animar_direita()
 
     def animar_baixo(self):
         tempo_atual = pygame.time.get_ticks()
@@ -179,6 +202,17 @@ class Player:
 
     def update(self):
         self.movement()
+
+    def draw_background(self, screen, camera_x, camera_y):
+        start_x = max(0, (camera_x // self.tile_size) * self.tile_size)
+        start_y = max(0, (camera_y // self.tile_size) * self.tile_size)
+
+        end_x = min(WIN_WIDTH, camera_x + SCREEN_WIDTH + self.tile_size)
+        end_y = min(WIN_HEIGHT, camera_y + SCREEN_HEIGHT + self.tile_size)
+
+        for x in range(start_x, end_x, self.tile_size):
+            for y in range(start_y, end_y, self.tile_size):
+                screen.blit(self.grama_image, (x - camera_x, y - camera_y))
 
     def draw(self, screen, camera_x=0, camera_y=0):
         screen.blit(self.image, (self.rect.x - camera_x, self.rect.y - camera_y))

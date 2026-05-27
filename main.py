@@ -34,10 +34,10 @@ class Game:
                         self.state = "game"
                     elif event.key == pygame.K_ESCAPE:  
                         self.running = False
-        if self.state == "game":
-            key = pygame.key.get_pressed()
-            if key[pygame.K_ESCAPE]:
-                self.running = False
+            if self.state == "game":
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:  
+                        self.state = "menu"
 
     def update(self):
         if self.state == "game":
@@ -60,15 +60,16 @@ class Game:
         pygame.display.flip()
 
     def draw_game(self):
-        self.screen.fill(BLACK)
+            self.screen.fill(BLACK)
 
-        borda_x = 0 - self.camera_x
-        borda_y = 0 - self.camera_y
-        pygame.draw.rect(self.screen, RED, (borda_x, borda_y, WIN_WIDTH, WIN_HEIGHT), 5)
-        
-        self.player.draw(self.screen, self.camera_x, self.camera_y)
-        
-        pygame.display.flip()
+            self.player.draw_background(self.screen, self.camera_x, self.camera_y)
+
+            borda_x = 0 - self.camera_x
+            borda_y = 0 - self.camera_y
+            
+            self.player.draw(self.screen, self.camera_x, self.camera_y)
+            
+            pygame.display.flip()
 
     def main(self):
         while self.running:
