@@ -64,8 +64,8 @@ class Player:
             move_y += 1
 
         if keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]:
-            move_x *= 1.5
-            move_y *= 1.5
+            move_x *= 5
+            move_y *= 5
             self.tempo_animacao_baixo = 125
             self.tempo_animacao_cima = 125
             self.tempo_animacao_dir = 125

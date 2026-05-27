@@ -3,6 +3,7 @@ import sys
 
 from config import *
 from player import *
+from npc import *
 
 class Game:
 
@@ -17,6 +18,8 @@ class Game:
         self.state = "menu" 
         
         self.player = Player()
+        self.cersei = NPC(WIN_WIDTH // 2, WIN_HEIGHT // 2, 'assets/image/cersei/parada.png')
+        self.rei_noite = NPC(WIN_WIDTH - 150, WIN_HEIGHT - 150, 'assets/image/rei_noite/parado.png')
 
         self.camera_x = 0
         self.camera_y = 0
@@ -100,10 +103,23 @@ class Game:
         escala_x = largura_mapa_tela / WIN_WIDTH
         escala_y = altura_mapa_tela / WIN_HEIGHT
 
+        rn_mini_x = margem_w + int(self.rei_noite.rect.x * escala_x)
+        rn_mini_y = margem_h + int(self.rei_noite.rect.y * escala_y)
+        COR_RN_MINI = (0, 0, 139)
+        pygame.draw.rect(self.screen, BLACK, (rn_mini_x - 9, rn_mini_y - 9, 18, 18))
+        pygame.draw.rect(self.screen, COR_RN_MINI, (rn_mini_x - 7, rn_mini_y - 7, 14, 14))
+
+        npc_mini_x = margem_w + int(self.cersei.rect.x * escala_x)
+        npc_mini_y = margem_h + int(self.cersei.rect.y * escala_y)
+        COR_CERSEI_MINI = (255, 0, 0)
+        pygame.draw.rect(self.screen, BLACK, (npc_mini_x - 9, npc_mini_y - 9, 18, 18))
+        pygame.draw.rect(self.screen, COR_CERSEI_MINI, (npc_mini_x - 7, npc_mini_y - 7, 14, 14))
+
         player_mini_x = margem_w + int(self.player.rect.x * escala_x)
         player_mini_y = margem_h + int(self.player.rect.y * escala_y)
-
-        pygame.draw.rect(self.screen, RED, (player_mini_x - 4, player_mini_y - 4, 8, 8))
+        COR_JON_MINI = (128, 128, 128)
+        pygame.draw.rect(self.screen, BLACK, (player_mini_x - 9, player_mini_y - 9, 18, 18))
+        pygame.draw.rect(self.screen, COR_JON_MINI, (player_mini_x - 7, player_mini_y - 7, 14, 14))
 
         pygame.display.flip()
 
@@ -118,6 +134,7 @@ class Game:
         self.player.draw_background(self.screen, self.camera_x, self.camera_y)
         
         self.cersei.draw(self.screen, self.camera_x, self.camera_y)
+        self.rei_noite.draw(self.screen, self.camera_x, self.camera_y)
         self.player.draw(self.screen, self.camera_x, self.camera_y)
         
         pygame.display.flip()
