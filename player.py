@@ -22,7 +22,7 @@ class Player:
         self.image = self.sprite_parado
         
         self.rect = self.image.get_rect()
-        self.rect.center = (400, 300)
+        self.rect.center = (640, 360)
         self.speed = 5
 
         self.direcao_atual = "parado"
@@ -46,6 +46,11 @@ class Player:
     def movement(self):
         keys = pygame.key.get_pressed()
         
+        if keys[pygame.K_TAB]:
+            self.image = self.sprite_parado
+            self.direcao_atual = "parado"
+            return
+
         move_x = 0
         move_y = 0
 
@@ -70,6 +75,11 @@ class Player:
             self.tempo_animacao_cima = 250
             self.tempo_animacao_dir = 250
             self.tempo_animacao_esq = 250
+
+        if move_x != 0 or move_y != 0:
+            self.velocidade = "andando"
+        else:
+            self.velocidade = "parado"
 
         pos_anterior_x = self.rect.x
         pos_anterior_y = self.rect.y
@@ -212,7 +222,17 @@ class Player:
 
         for x in range(start_x, end_x, self.tile_size):
             for y in range(start_y, end_y, self.tile_size):
-                screen.blit(self.grama_image, (x - camera_x, y - camera_y))
+                largura_corte = self.tile_size
+                altura_corte = self.tile_size
+
+                if x + largura_corte > WIN_WIDTH:
+                    largura_corte = WIN_WIDTH - x
+                if y + altura_corte > WIN_HEIGHT:
+                    altura_corte = WIN_HEIGHT - y
+
+                if largura_corte > 0 and altura_corte > 0:
+                    area_recorte = pygame.Rect(0, 0, largura_corte, altura_corte)
+                    screen.blit(self.grama_image, (x - camera_x, y - camera_y), area_recorte)
 
     def draw(self, screen, camera_x=0, camera_y=0):
         screen.blit(self.image, (self.rect.x - camera_x, self.rect.y - camera_y))
