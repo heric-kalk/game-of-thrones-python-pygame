@@ -116,11 +116,8 @@ class Game:
         self.screen.fill(BLACK)
 
         self.player.draw_background(self.screen, self.camera_x, self.camera_y)
-
-        borda_x = 0 - self.camera_x
-        borda_y = 0 - self.camera_y
-        pygame.draw.rect(self.screen, RED, (borda_x, borda_y, WIN_WIDTH, WIN_HEIGHT), 5)
         
+        self.cersei.draw(self.screen, self.camera_x, self.camera_y)
         self.player.draw(self.screen, self.camera_x, self.camera_y)
         
         pygame.display.flip()
