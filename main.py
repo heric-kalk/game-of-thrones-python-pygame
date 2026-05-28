@@ -199,7 +199,7 @@ class Game:
         else:
             if tempo_atual - self.tempo_ultimo_turno > 2000:
                 if self.sucessos_diplomacia >= 3:
-                    self.vida_jon = 200
+                    self.vida_jon += 100
                     self.vida_sucesso = 1
                     self.player.rect.x += 120
                     self.state = "game"
@@ -388,7 +388,7 @@ class Game:
                 
             if len(self.dados_rolados) == 5:
                 if self.sucessos_diplomacia >= 3:
-                    resultado_txt = self.font.render(f"SUCESSO TOTAL! ({self.sucessos_diplomacia}/3) HP JON = 200", True, GREEN)
+                    resultado_txt = self.font.render(f"SUCESSO TOTAL! ({self.sucessos_diplomacia}/3) HP JON = {self.vida_jon + 100}", True, GREEN)
                 else:
                     resultado_txt = self.font.render(f"FALHA TOTAL! ({self.sucessos_diplomacia}/3)", True, RED)
                 self.screen.blit(resultado_txt, (SCREEN_WIDTH // 2 - resultado_txt.get_width() // 2, pos_y + 20))
