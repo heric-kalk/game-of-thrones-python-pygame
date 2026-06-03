@@ -26,6 +26,7 @@ class Player:
         self.speed = 5
 
         self.direcao_atual = "parado"
+        self.movendo_no_frame = False
 
         self.ultimo_tempo_baixo = 0
         self.tempo_animacao_baixo = 250
@@ -43,12 +44,13 @@ class Player:
         self.tempo_animacao_esq = 250
         self.sprite_atual_esq = 1
 
-    def movement(self):
+    def movement(self, arvores):
         keys = pygame.key.get_pressed()
         
         if keys[pygame.K_TAB]:
             self.image = self.sprite_parado
             self.direcao_atual = "parado"
+            self.movendo_no_frame = False
             return
 
         move_x = 0
@@ -64,8 +66,8 @@ class Player:
             move_y += 1
 
         if keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]:
-            move_x *= 5
-            move_y *= 5
+            move_x *= 15
+            move_y *= 15
             self.tempo_animacao_baixo = 125
             self.tempo_animacao_cima = 125
             self.tempo_animacao_dir = 125
@@ -85,23 +87,35 @@ class Player:
         pos_anterior_y = self.rect.y
 
         if move_x != 0 and move_y != 0:
-            self.rect.x += int(move_x * (self.speed * 0.8))
-            self.rect.y += int(move_y * (self.speed * 0.8))
+            vel_final_x = int(move_x * (self.speed * 0.8))
+            vel_final_y = int(move_y * (self.speed * 0.8))
         else:
-            self.rect.x += int(move_x * self.speed)
-            self.rect.y += int(move_y * self.speed)
+            vel_final_x = int(move_x * self.speed)
+            vel_final_y = int(move_y * self.speed)
 
+        self.rect.x += vel_final_x
+        
         if self.rect.left < 0:
             self.rect.left = 0
         if self.rect.right > WIN_WIDTH:
             self.rect.right = WIN_WIDTH
+
+        self.rect.y += vel_final_y
+
         if self.rect.top < 0:
             self.rect.top = 0
         if self.rect.bottom > WIN_HEIGHT:
             self.rect.bottom = WIN_HEIGHT
 
+        self.check_collision(arvores)
+
         andou_x = self.rect.x != pos_anterior_x
         andou_y = self.rect.y != pos_anterior_y
+
+        if andou_x or andou_y:
+            self.movendo_no_frame = True
+        else:
+            self.movendo_no_frame = False
 
         if not andou_x and not andou_y:
             self.image = self.sprite_parado
@@ -210,8 +224,8 @@ class Player:
             elif self.sprite_atual_esq == 3:
                 self.image = self.sprite_esq3
 
-    def update(self):
-        self.movement()
+    def update(self, arvores):
+        self.movement(arvores)
 
     def draw_background(self, screen, camera_x, camera_y):
         start_x = max(0, (camera_x // self.tile_size) * self.tile_size)
@@ -236,3 +250,22 @@ class Player:
 
     def draw(self, screen, camera_x=0, camera_y=0):
         screen.blit(self.image, (self.rect.x - camera_x, self.rect.y - camera_y))
+
+    def check_collision(self, arvores):
+        for arvore in arvores:
+            
+            alvo_colisao = getattr(arvore, 'hitbox', None)
+            if alvo_colisao is None:
+                alvo_colisao = getattr(arvore, 'collision_rect', None)
+                
+            if alvo_colisao and self.rect.colliderect(alvo_colisao):
+                dx = self.rect.centerx - alvo_colisao.centerx
+                dy = self.rect.centery - alvo_colisao.centery
+
+                overlap_x = (self.rect.width // 2 + alvo_colisao.width // 2) - abs(dx)
+                overlap_y = (self.rect.height // 2 + alvo_colisao.height // 2) - abs(dy)
+
+                if overlap_x < overlap_y:
+                    self.rect.x += int(overlap_x * (1 if dx > 0 else -1))
+                else:
+                    self.rect.y += int(overlap_y * (1 if dy > 0 else -1))
