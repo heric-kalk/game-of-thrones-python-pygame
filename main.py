@@ -17,6 +17,18 @@ class Game:
         self.running = True
         
         self.state = "menu"  
+        self.opcao_selecionada = 0  
+        self.opcoes_menu = ["Jogar", "Configurações", "Sair"]
+
+        self.volume_atual = 0.5
+        self.volume_efeitos = 0.5
+        self.arrastando_volume = False
+        self.arrastando_efeitos = False
+        self.barra_volume_x = 0
+        self.barra_volume_y = 0
+        self.barra_efeitos_x = 0
+        self.barra_efeitos_y = 0
+        self.barra_volume_largura = 300
         
         self.player = Player()
         self.cersei = NPC(WIN_WIDTH // 2, WIN_HEIGHT // 2, 'assets/image/cersei/parada.png')
@@ -82,7 +94,7 @@ class Game:
             (8653, 632), (19215, 17677), (12245, 4038), (5519, 11590), (13054, 4962),
             (10296, 17695), (8832, 6791), (15124, 2126), (1191, 11930), (7889, 4924),
             (2866, 12738), (891, 12058), (10719, 12596), (8326, 17939), (5327, 2726),
-            (1005, 1251), (6065, 7242), (7578, 11557), (8685, 2608), (324, 14523),
+            (1905, 1251), (6065, 7242), (7578, 11557), (8685, 2608), (324, 14523),
             (4034, 14581), (2953, 12416), (16591, 14185), (18595, 12615), (18624, 8912),
             (11017, 11600), (4123, 9254), (2411, 1388), (7499, 9051), (10984, 3657),
             (9179, 10353), (8266, 7267), (14792, 14872), (8882, 2843), (12864, 4296),
@@ -148,7 +160,7 @@ class Game:
             (9838, 837), (8559, 12137), (16105, 11735), (18937, 15477), (5816, 11551),
             (12508, 8247), (7172, 9415), (9411, 7575), (4401, 15890), (9416, 8725),
             (7346, 10268), (1257, 17397), (767, 12715), (4476, 17885), (9218, 18699),
-            (13050, 17113), (19075, 6253), (17899, 12490), (1095, 17070), (3673, 16089),
+            (13050, 17113), (19075, 6253), (17899, 12490), (109, 17070), (3673, 16089),
             (3728, 14517), (10294, 16870), (17329, 16236), (396, 3047), (15209, 19251),
             (19561, 12381), (8303, 11596), (1111, 4210), (7139, 7797), (1754, 10425),
             (15446, 8667), (2170, 6082), (7062, 19624), (3140, 3039), (12802, 6333),
@@ -248,19 +260,72 @@ class Game:
                 self.som_correr.stop()
                 self.correndo_anteriormente = False
                 if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_RETURN:  
-                        self.state = "game"
-                        self.channel_menu.pause()
-                        if not self.channel_jogo.get_busy():
-                            self.channel_jogo.play(self.music_jogo, loops=-1)
-                        else:
-                            self.channel_jogo.unpause()
-                    elif event.key == pygame.K_ESCAPE:  
-                        self.running = False
+                    if event.key == pygame.K_DOWN or event.key == pygame.K_s:
+                        self.opcao_selecionada = (self.opcao_selecionada + 1) % len(self.opcoes_menu)
+                    elif event.key == pygame.K_UP or event.key == pygame.K_w:
+                        self.opcao_selecionada = (self.opcao_selecionada - 1) % len(self.opcoes_menu)
+                    elif event.key == pygame.K_RETURN:
+                        self._executar_opcao_menu()
+
+                if event.type == pygame.MOUSEMOTION:
+                    mouse_x, mouse_y = event.pos
+                    opcoes_y_inicio = SCREEN_HEIGHT // 2 - 60
+                    for i in range(len(self.opcoes_menu)):
+                        opcao_y = opcoes_y_inicio + i * 80
+                        if opcao_y <= mouse_y <= opcao_y + 50:
+                            self.opcao_selecionada = i
+
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    mouse_x, mouse_y = event.pos
+                    opcoes_y_inicio = SCREEN_HEIGHT // 2 - 60
+                    for i in range(len(self.opcoes_menu)):
+                        opcao_y = opcoes_y_inicio + i * 80
+                        if opcao_y <= mouse_y <= opcao_y + 50:
+                            self.opcao_selecionada = i
+                            self._executar_opcao_menu()
+
+            elif self.state == "config":
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        self.state = "menu"
+
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    mouse_x, mouse_y = event.pos
+
+                    opcoes_y_inicio = SCREEN_HEIGHT // 2 - 60
+                    for i in range(len(self.opcoes_menu)):
+                        opcao_y = opcoes_y_inicio + i * 80
+
+                    botao_musica_x = self.barra_volume_x + int(self.volume_atual * self.barra_volume_largura)
+                    botao_musica_y = self.barra_volume_y + 5
+                    if ((mouse_x - botao_musica_x) ** 2 + (mouse_y - botao_musica_y) ** 2) ** 0.5 <= 14:
+                        self.arrastando_volume = True
+
+                    botao_efeitos_x = self.barra_efeitos_x + int(self.volume_efeitos * self.barra_volume_largura)
+                    botao_efeitos_y = self.barra_efeitos_y + 5
+                    if ((mouse_x - botao_efeitos_x) ** 2 + (mouse_y - botao_efeitos_y) ** 2) ** 0.5 <= 14:
+                        self.arrastando_efeitos = True
+
+                if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+                    self.arrastando_volume = False
+                    self.arrastando_efeitos = False
+
+                if event.type == pygame.MOUSEMOTION:
+                    if self.arrastando_volume:
+                        mouse_x, _ = event.pos
+                        botao_x = max(self.barra_volume_x, min(mouse_x, self.barra_volume_x + self.barra_volume_largura))
+                        self.volume_atual = (botao_x - self.barra_volume_x) / self.barra_volume_largura
+                        self.channel_menu.set_volume(self.volume_atual)
+                        self.channel_jogo.set_volume(self.volume_atual)
+                    if self.arrastando_efeitos:
+                        mouse_x, _ = event.pos
+                        botao_x = max(self.barra_efeitos_x, min(mouse_x, self.barra_efeitos_x + self.barra_volume_largura))
+                        self.volume_efeitos = (botao_x - self.barra_efeitos_x) / self.barra_volume_largura
+                        self.aplicar_volume_efeitos()
 
             elif self.state in ["game", "diplomacy", "combat"]:
                 if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_ESCAPE:  
+                    if event.key == pygame.K_ESCAPE:
                         self.state = "menu"
                     
                     elif event.key == pygame.K_TAB and self.state == "game":
@@ -281,6 +346,18 @@ class Game:
                         correndo = keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]
                         if andando and correndo:
                             self.som_correr.play(loops=-1)
+    def _executar_opcao_menu(self):
+        if self.opcao_selecionada == 0:
+            self.state = "game"
+            self.channel_menu.pause()
+            if not self.channel_jogo.get_busy():
+                self.channel_jogo.play(self.music_jogo, loops=-1)
+            else:
+                self.channel_jogo.unpause()
+        elif self.opcao_selecionada == 1:
+            self.state = "config"
+        elif self.opcao_selecionada == 2:
+            self.running = False
 
     def rolar_dado_diplomacia(self):
         dado = random.randint(1, 20)
@@ -452,23 +529,91 @@ class Game:
             if not keys[pygame.K_TAB]:
                 self.camera_x = self.player.rect.centerx - SCREEN_WIDTH // 2
                 self.camera_y = self.player.rect.centery - SCREEN_HEIGHT // 2
-                
+
         elif self.state == "diplomacy":
             self.atualizar_diplomacia()
         elif self.state == "combat":
             self.atualizar_combate()
+    
 
     def draw_menu(self):
         self.screen.fill(BLACK)
-        
+
         titulo_texto = self.font.render(TITLE, True, RED)
-        instrucao_texto = self.font.render("Pressione ENTER para Jogar", True, WHITE)
-        sair_texto = self.font.render("Pressione ESC para Sair", True, GRAY)
-        
-        self.screen.blit(titulo_texto, (SCREEN_WIDTH // 2 - titulo_texto.get_width() // 2, 150))
-        self.screen.blit(instrucao_texto, (SCREEN_WIDTH // 2 - instrucao_texto.get_width() // 2, 300))
-        self.screen.blit(sair_texto, (SCREEN_WIDTH // 2 - sair_texto.get_width() // 2, 400))
-        
+        self.screen.blit(titulo_texto, (SCREEN_WIDTH // 2 - titulo_texto.get_width() // 2, 120))
+
+        opcoes_y_inicio = SCREEN_HEIGHT // 2 - 60
+        espacamento = 80
+
+        for i, opcao in enumerate(self.opcoes_menu):
+            if i == self.opcao_selecionada:
+                cor = YELLOW
+                prefixo = "> "
+                sufixo = " <"
+            else:
+                cor = WHITE
+                prefixo = "  "
+                sufixo = "  "
+            texto = self.font.render(f"{prefixo}{opcao}{sufixo}", True, cor)
+            self.screen.blit(texto, (SCREEN_WIDTH // 2 - texto.get_width() // 2, opcoes_y_inicio + i * espacamento))
+
+        pygame.display.flip()
+
+    def draw_config(self):
+        self.screen.fill(BLACK)
+
+        titulo = self.font.render("Configurações", True, WHITE)
+        self.screen.blit(titulo, (SCREEN_WIDTH // 2 - titulo.get_width() // 2, 100))
+
+        barra_largura = 300
+        barra_altura = 10
+        botao_raio = 14
+        barra_x = SCREEN_WIDTH // 2 - barra_largura // 2
+
+        musica_y = SCREEN_HEIGHT // 2 - 60
+
+        self.barra_volume_x = barra_x
+        self.barra_volume_y = musica_y
+        self.barra_volume_largura = barra_largura
+
+        botao_musica_x = barra_x + int(self.volume_atual * barra_largura)
+        botao_musica_y = musica_y + barra_altura // 2
+
+        label_musica = self.font.render("Volume da Música", True, WHITE)
+        self.screen.blit(label_musica, (SCREEN_WIDTH // 2 - label_musica.get_width() // 2, musica_y - 50))
+
+        pygame.draw.rect(self.screen, GRAY, (barra_x, musica_y, barra_largura, barra_altura), border_radius=5)
+        preenche_musica = botao_musica_x - barra_x
+        if preenche_musica > 0:
+            pygame.draw.rect(self.screen, (70, 130, 230), (barra_x, musica_y, preenche_musica, barra_altura), border_radius=5)
+        pygame.draw.circle(self.screen, WHITE, (botao_musica_x, botao_musica_y), botao_raio)
+
+        pct_musica = self.font.render(f"{int(self.volume_atual * 100)}%", True, WHITE)
+        self.screen.blit(pct_musica, (SCREEN_WIDTH // 2 - pct_musica.get_width() // 2, musica_y + 25))
+
+        efeitos_y = SCREEN_HEIGHT // 2 + 100
+
+        self.barra_efeitos_x = barra_x
+        self.barra_efeitos_y = efeitos_y
+
+        botao_efeitos_x = barra_x + int(self.volume_efeitos * barra_largura)
+        botao_efeitos_y = efeitos_y + barra_altura // 2
+
+        label_efeitos = self.font.render("Volume dos Efeitos", True, WHITE)
+        self.screen.blit(label_efeitos, (SCREEN_WIDTH // 2 - label_efeitos.get_width() // 2, efeitos_y - 50))
+
+        pygame.draw.rect(self.screen, GRAY, (barra_x, efeitos_y, barra_largura, barra_altura), border_radius=5)
+        preenche_efeitos = botao_efeitos_x - barra_x
+        if preenche_efeitos > 0:
+            pygame.draw.rect(self.screen, (70, 130, 230), (barra_x, efeitos_y, preenche_efeitos, barra_altura), border_radius=5)
+        pygame.draw.circle(self.screen, WHITE, (botao_efeitos_x, botao_efeitos_y), botao_raio)
+
+        pct_efeitos = self.font.render(f"{int(self.volume_efeitos * 100)}%", True, WHITE)
+        self.screen.blit(pct_efeitos, (SCREEN_WIDTH // 2 - pct_efeitos.get_width() // 2, efeitos_y + 25))
+
+        voltar = self.font.render("ESC para voltar", True, GRAY)
+        self.screen.blit(voltar, (SCREEN_WIDTH // 2 - voltar.get_width() // 2, efeitos_y + 120))
+
         pygame.display.flip()
 
     def draw_tactical_map(self):
@@ -602,18 +747,24 @@ class Game:
                 self.screen.blit(txt_combate, (SCREEN_WIDTH // 2 - txt_combate.get_width() // 2, SCREEN_HEIGHT // 2))
 
         pygame.display.flip()
-
     def main(self):
         while self.running:
             self.events()
             self.update()
-            
+
             if self.state == "menu":
                 self.draw_menu()
+            elif self.state == "config":
+                self.draw_config()
             elif self.state in ["game", "diplomacy", "combat"]:
                 self.draw_game()
-                
+
             self.clock.tick(FPS)
+    def aplicar_volume_efeitos(self):
+        self.som_andar1.set_volume(self.volume_efeitos)
+        self.som_andar2.set_volume(self.volume_efeitos)
+        self.som_andar3.set_volume(self.volume_efeitos)
+        self.som_correr.set_volume(self.volume_efeitos)
 
 if __name__ == "__main__":
     game = Game()
