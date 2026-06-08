@@ -87,8 +87,8 @@ class Player:
         pos_anterior_y = self.rect.y
 
         if move_x != 0 and move_y != 0:
-            vel_final_x = int(move_x * (self.speed * 0.8))
-            vel_final_y = int(move_y * (self.speed * 0.8))
+            vel_final_x = int(move_x * (self.speed * 0.75))
+            vel_final_y = int(move_y * (self.speed * 0.75))
         else:
             vel_final_x = int(move_x * self.speed)
             vel_final_y = int(move_y * self.speed)

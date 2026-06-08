@@ -7,7 +7,6 @@ from player import *
 from npc import *
 
 class Game:
-
     def __init__(self):
         pygame.init()
 
@@ -34,6 +33,13 @@ class Game:
         self.cersei = NPC(WIN_WIDTH // 2, WIN_HEIGHT // 2, 'assets/image/cersei/parada.png')
         self.rei_noite = NPC(WIN_WIDTH - 400, WIN_HEIGHT - 400, 'assets/image/rei_noite/parado.png')
         self.luluzinha = NPC(WIN_WIDTH - 19600, WIN_HEIGHT - 550, 'assets/image/cenario/luluzinha.png')
+
+        self.pocao = []
+        for x in range(10):
+            x_aleatorio = random.randint(100, WIN_WIDTH - 100)
+            y_aleatorio = random.randint(100, WIN_HEIGHT - 100)
+            pocao = NPC(x_aleatorio, y_aleatorio, 'assets/image/cenario/pocao.png')
+            self.pocao.append(pocao)
 
         self.selvagens = []
         for _ in range(20):
@@ -219,6 +225,9 @@ class Game:
 
         self.music_menu = pygame.mixer.Sound('assets/audio/music/menu.mp3')
         self.music_jogo = pygame.mixer.Sound('assets/audio/music/jogo.mp3')
+        self.music_rei = pygame.mixer.Sound('assets/audio/music/rei.mp3')
+        self.music_cersei_diplomacia = pygame.mixer.Sound('assets/audio/music/cersei_diplomacia.mp3')
+        self.music_cersei_combate = pygame.mixer.Sound('assets/audio/music/cersei_combate.mp3')
 
         self.channel_menu = pygame.mixer.Channel(0)
         self.channel_jogo = pygame.mixer.Channel(1)
@@ -231,6 +240,12 @@ class Game:
         self.sons_caminhada = [self.som_andar1, self.som_andar2, self.som_andar3]
         
         self.som_correr = pygame.mixer.Sound('assets/audio/sound effect/correr.mp3')
+
+        self.som_pocao = pygame.mixer.Sound('assets/audio/sound effect/pocao.mp3')
+        self.som_selvagem = pygame.mixer.Sound('assets/audio/sound effect/selvagem.mp3')
+        self.som_cersei = pygame.mixer.Sound('assets/audio/sound effect/cersei.mp3')
+        self.som_erro = pygame.mixer.Sound('assets/audio/sound effect/erro.mp3')
+        self.som_rei = pygame.mixer.Sound('assets/audio/sound effect/rei.mp3')
         
         self.passo_atual_index = 0
         self.tempo_ultimo_passo = 0
@@ -241,16 +256,21 @@ class Game:
         self.vida_cersei = 100
         self.vida_rei = 200
         self.vida_sucesso = 0
+        self.flash_agendado = False
+        self.tempo_flash = 0
+        self.flash_dano = 0
 
         self.tempo_ultimo_turno = 0
-        self.intervalo_turno = 1000
+        self.intervalo_turno = 2000
+
+        self.rei_despertou = False
+        self.cersei_dispertou = False
 
         self.dados_rolados = []
         self.sucessos_diplomacia = 0
         self.mensagem_combate = ""
         self.turno_atual = "jon"
         self.inimigo_atual = ""
-
     def events(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -291,10 +311,6 @@ class Game:
 
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     mouse_x, mouse_y = event.pos
-
-                    opcoes_y_inicio = SCREEN_HEIGHT // 2 - 60
-                    for i in range(len(self.opcoes_menu)):
-                        opcao_y = opcoes_y_inicio + i * 80
 
                     botao_musica_x = self.barra_volume_x + int(self.volume_atual * self.barra_volume_largura)
                     botao_musica_y = self.barra_volume_y + 5
@@ -358,7 +374,6 @@ class Game:
             self.state = "config"
         elif self.opcao_selecionada == 2:
             self.running = False
-
     def rolar_dado_diplomacia(self):
         dado = random.randint(1, 20)
         sucesso = dado >= 12
@@ -366,22 +381,23 @@ class Game:
             self.sucessos_diplomacia += 1
         self.dados_rolados.append((dado, sucesso))
         self.tempo_ultimo_turno = pygame.time.get_ticks()
-
     def executar_ataque_jon(self):
         ataque_jon = random.randint(1, 20)
         if ataque_jon >= 10:
             if self.inimigo_atual == "cersei":
+                self.som_cersei.play()
                 self.vida_cersei -= 10
-                self.mensagem_combate = f"Jon tirou {ataque_jon} ACERTOU Cersei HP: {self.vida_cersei}"
+                self.mensagem_combate = f"Em cheio! Jon tirou {ataque_jon}"
             elif self.inimigo_atual == "rei":
+                self.som_rei.play()
                 self.vida_rei -= 10
-                self.mensagem_combate = f"Jon tirou {ataque_jon} ACERTOU Rei da Noite HP: {self.vida_rei}"
+                self.mensagem_combate = f"Belo ataque! Jon tirou {ataque_jon}"
         else:
-            self.mensagem_combate = f"Jon tirou {ataque_jon} ERROU"
+            self.som_erro.play()
+            self.mensagem_combate = f"Você errou! Jon tirou {ataque_jon}"
         
         self.turno_atual = "inimigo"
         self.tempo_ultimo_turno = pygame.time.get_ticks()
-
     def gerenciar_audio_passos(self):
         keys = pygame.key.get_pressed()
         
@@ -420,7 +436,6 @@ class Game:
                     self.tempo_ultimo_passo = tempo_atual
             else:
                 self.tecla_pressionada_anteriormente = False
-
     def gerenciar_encontros(self):
         for i in range(len(self.selvagens) - 1, -1, -1):
             selvagem = self.selvagens[i]
@@ -428,17 +443,38 @@ class Game:
                                   (self.player.rect.y - selvagem.rect.y) ** 2) ** 0.5
             
             if distancia_selvagem <= 120:
+                self.som_selvagem.play()
                 self.vida_jon -= 1  
                 self.selvagens.pop(i)  
+                
+                self.flash_agendado = True
+                self.tempo_flash = pygame.time.get_ticks()
                 
                 if self.vida_jon <= 0:
                     self.running = False
                 return 
+            
+        for i in range(len(self.pocao) - 1, -1, -1):
+            pocao = self.pocao[i]
+            distancia_pocao = ((self.player.rect.x - pocao.rect.x) ** 2 +
+                               (self.player.rect.y - pocao.rect.y) ** 2) ** 0.5
+            
+            if distancia_pocao <= 120:
+                self.som_pocao.play()
+                self.vida_jon += 5
+                self.pocao.pop(i)  
+                return
 
         distancia_cersei = ((self.player.rect.x - self.cersei.rect.x) ** 2 +
                             (self.player.rect.y - self.cersei.rect.y) ** 2) ** 0.5
 
         if distancia_cersei <= 80 and self.vida_cersei > 0 and self.vida_sucesso == 0:
+            if self.cersei_dispertou == False:
+                self.channel_jogo.stop()
+                self.channel_jogo.play(self.music_cersei_diplomacia, loops=-1)
+                self.cersei_dispertou = True
+            else:
+                pass
             self.som_correr.stop()  
             self.correndo_anteriormente = False
             self.inimigo_atual = "cersei"
@@ -451,15 +487,20 @@ class Game:
         distancia_rei = ((self.player.rect.x - self.rei_noite.rect.x) ** 2 +
                          (self.player.rect.y - self.rei_noite.rect.y) ** 2) ** 0.5
 
-        if distancia_rei <= 80 and self.vida_rei > 0:
-            self.som_correr.stop()  
+        if distancia_rei <= 80 and self.vida_rei > 0 and (self.vida_cersei <= 0 or self.vida_sucesso == 1):
+            if self.rei_despertou == False:
+                self.channel_jogo.stop()
+                self.channel_jogo.play(self.music_rei, loops=-1)
+                self.rei_despertou = True
+            else:
+                pass
+            self.som_correr.stop()
             self.correndo_anteriormente = False
             self.inimigo_atual = "rei"
             self.mensagem_combate = "O REI DA NOITE SE APROXIMA!"
             self.state = "combat"
             self.turno_atual = "jon"
             self.tempo_ultimo_turno = pygame.time.get_ticks()
-
     def atualizar_diplomacia(self):
         tempo_atual = pygame.time.get_ticks()
 
@@ -470,12 +511,15 @@ class Game:
                     self.vida_sucesso = 1
                     self.player.rect.x += 120
                     self.state = "game"
+                    self.channel_jogo.stop()
+                    self.channel_jogo.play(self.music_jogo, loops=-1)
                 else:
                     self.mensagem_combate = "FALHA O COMBATE COMECOU"
                     self.state = "combat"
                     self.turno_atual = "jon"
                     self.tempo_ultimo_turno = pygame.time.get_ticks()
-
+                    self.channel_jogo.stop()
+                    self.channel_jogo.play(self.music_cersei_combate, loops=-1)
     def atualizar_combate(self):
         tempo_atual = pygame.time.get_ticks()
 
@@ -483,12 +527,16 @@ class Game:
             if self.inimigo_atual == "cersei" and self.vida_cersei <= 0:
                 self.mensagem_combate = "Cersei Lannister foi derrotada!"
                 self.player.rect.x -= 120  
-                self.state = "game"        
+                self.state = "game"  
+                self.channel_jogo.stop()
+                self.channel_jogo.play(self.music_jogo, loops=-1)      
                 return
             elif self.inimigo_atual == "rei" and self.vida_rei <= 0:
                 self.mensagem_combate = "O Rei da Noite foi derrotado!"
                 self.player.rect.x += 120
                 self.state = "game"
+                self.channel_jogo.stop()
+                self.channel_jogo.play(self.music_jogo, loops=-1)
                 return
 
         elif self.turno_atual == "inimigo":
@@ -499,25 +547,32 @@ class Game:
                 
                 if self.inimigo_atual == "cersei":
                     if ataque_inimigo >= 10:
+                        self.som_selvagem.play()
+                        self.flash_agendado = True
+                        self.tempo_flash = pygame.time.get_ticks()
                         self.vida_jon -= 10
-                        self.mensagem_combate = f"Cersei tirou {ataque_inimigo} ACERTOU Jon HP: {self.vida_jon}"
+                        self.mensagem_combate = f"Cersei te pegou de jeito! Tirou {ataque_inimigo}"
                     else:
-                        self.mensagem_combate = f"Cersei tirou {ataque_inimigo} ERROU"
+                        self.som_erro.play()
+                        self.mensagem_combate = f"Bela esquiva! Cersei tirou {ataque_inimigo}"
                         
                 elif self.inimigo_atual == "rei":
                     if ataque_inimigo >= 10:
+                        self.som_selvagem.play()
+                        self.flash_agendado = True
+                        self.tempo_flash = pygame.time.get_ticks()
                         self.vida_jon -= 5
                         self.vida_rei += 5
-                        self.mensagem_combate = f"Rei da Noite tirou {ataque_inimigo} ROUBOU VIDA Rei: {self.vida_rei} | Jon: {self.vida_jon}"
+                        self.mensagem_combate = f"O Rei da Noite te acertou em cheio! Tirou {ataque_inimigo}"
                     else:
-                        self.mensagem_combate = f"Rei da Noite tirou {ataque_inimigo} ERROU"
+                        self.som_erro.play()
+                        self.mensagem_combate = f"Bela esquiva! O Rei da Noite tirou {ataque_inimigo}"
                 
                 if self.vida_jon <= 0:
                     self.mensagem_combate = "Jon Snow caiu em combate... Game Over!"
                     self.running = False
                 
                 self.turno_atual = "jon"
-
     def update(self):
         if self.state == "game":
             self.player.update(self.arvores)
@@ -534,8 +589,16 @@ class Game:
             self.atualizar_diplomacia()
         elif self.state == "combat":
             self.atualizar_combate()
-    
 
+        if self.flash_dano > 0:
+            self.flash_dano -= 5
+
+        if self.flash_agendado:
+
+            if pygame.time.get_ticks() - self.tempo_flash >= 500:
+
+                self.flash_dano = 150
+                self.flash_agendado = False
     def draw_menu(self):
         self.screen.fill(BLACK)
 
@@ -558,7 +621,6 @@ class Game:
             self.screen.blit(texto, (SCREEN_WIDTH // 2 - texto.get_width() // 2, opcoes_y_inicio + i * espacamento))
 
         pygame.display.flip()
-
     def draw_config(self):
         self.screen.fill(BLACK)
 
@@ -570,26 +632,26 @@ class Game:
         botao_raio = 14
         barra_x = SCREEN_WIDTH // 2 - barra_largura // 2
 
-        musica_y = SCREEN_HEIGHT // 2 - 60
+        barra_y = SCREEN_HEIGHT // 2 - 60
 
         self.barra_volume_x = barra_x
-        self.barra_volume_y = musica_y
+        self.barra_volume_y = barra_y
         self.barra_volume_largura = barra_largura
 
         botao_musica_x = barra_x + int(self.volume_atual * barra_largura)
-        botao_musica_y = musica_y + barra_altura // 2
+        botao_musica_y = barra_y + barra_altura // 2
 
         label_musica = self.font.render("Volume da Música", True, WHITE)
-        self.screen.blit(label_musica, (SCREEN_WIDTH // 2 - label_musica.get_width() // 2, musica_y - 50))
+        self.screen.blit(label_musica, (SCREEN_WIDTH // 2 - label_musica.get_width() // 2, barra_y - 50))
 
-        pygame.draw.rect(self.screen, GRAY, (barra_x, musica_y, barra_largura, barra_altura), border_radius=5)
+        pygame.draw.rect(self.screen, GRAY, (barra_x, barra_y, barra_largura, barra_altura), border_radius=5)
         preenche_musica = botao_musica_x - barra_x
         if preenche_musica > 0:
-            pygame.draw.rect(self.screen, (70, 130, 230), (barra_x, musica_y, preenche_musica, barra_altura), border_radius=5)
+            pygame.draw.rect(self.screen, (70, 130, 230), (barra_x, barra_y, preenche_musica, barra_altura), border_radius=5)
         pygame.draw.circle(self.screen, WHITE, (botao_musica_x, botao_musica_y), botao_raio)
 
         pct_musica = self.font.render(f"{int(self.volume_atual * 100)}%", True, WHITE)
-        self.screen.blit(pct_musica, (SCREEN_WIDTH // 2 - pct_musica.get_width() // 2, musica_y + 25))
+        self.screen.blit(pct_musica, (SCREEN_WIDTH // 2 - pct_musica.get_width() // 2, barra_y + 25))
 
         efeitos_y = SCREEN_HEIGHT // 2 + 100
 
@@ -615,7 +677,6 @@ class Game:
         self.screen.blit(voltar, (SCREEN_WIDTH // 2 - voltar.get_width() // 2, efeitos_y + 120))
 
         pygame.display.flip()
-
     def draw_tactical_map(self):
         self.screen.fill(BLACK)
 
@@ -651,6 +712,12 @@ class Game:
             s_mini_y = margem_h + int(selvagem.rect.y * escala_y)
             pygame.draw.rect(self.screen, BLACK, (s_mini_x - 5, s_mini_y - 5, 10, 10))
             pygame.draw.rect(self.screen, COR_SELVAGEM_MINI, (s_mini_x - 4, s_mini_y - 4, 8, 8))
+        
+        for pocao in self.pocao:
+            p_mini_x = margem_w + int(pocao.rect.x * escala_x)
+            p_mini_y = margem_h + int(pocao.rect.y * escala_y)
+            pygame.draw.circle(self.screen, BLACK, (p_mini_x, p_mini_y), 5)
+            pygame.draw.circle(self.screen, RED, (p_mini_x, p_mini_y), 4)
 
         if self.vida_rei > 0:
             rn_mini_x = margem_w + int(self.rei_noite.rect.x * escala_x)
@@ -673,7 +740,6 @@ class Game:
         pygame.draw.rect(self.screen, COR_JON_MINI, (player_mini_x - 7, player_mini_y - 7, 14, 14))
 
         pygame.display.flip()
-
     def draw_game(self):
         keys = pygame.key.get_pressed()
         if keys[pygame.K_TAB]:
@@ -686,6 +752,9 @@ class Game:
         
         for selvagem in self.selvagens:
             selvagem.draw(self.screen, self.camera_x, self.camera_y)
+        
+        for pocao in self.pocao:
+            pocao.draw(self.screen, self.camera_x, self.camera_y)
 
         if self.vida_cersei > 0:
             self.cersei.draw(self.screen, self.camera_x, self.camera_y)
@@ -709,8 +778,13 @@ class Game:
             fundo_interface.fill((0, 0, 0, 180))
             self.screen.blit(fundo_interface, (0, 0))
             
-            titulo = self.font.render("Teste de Diplomacia (5d20 >= 12)", True, WHITE)
-            self.screen.blit(titulo, (SCREEN_WIDTH // 2 - titulo.get_width() // 2, 50))
+            linha1 = self.font.render("Convença a Cersei a te ajudar na grande guerra!",True,WHITE)
+
+            linha2 = self.font.render("Aperte ENTER para rolar os dados de diplomacia (d20, DT = 12)",True,WHITE)
+
+            self.screen.blit(linha1,(SCREEN_WIDTH // 2 - linha1.get_width() // 2, 50))
+
+            self.screen.blit(linha2,(SCREEN_WIDTH // 2 - linha2.get_width() // 2, 100))
             
             pos_y = 150
             for idx, (valor, sucesso) in enumerate(self.dados_rolados):
@@ -722,9 +796,9 @@ class Game:
                 
             if len(self.dados_rolados) == 5:
                 if self.sucessos_diplomacia >= 3:
-                    resultado_txt = self.font.render(f"SUCESSO TOTAL! ({self.sucessos_diplomacia}/3) HP JON = {self.vida_jon + 100}", True, GREEN)
+                    resultado_txt = self.font.render(f"Parabéns! Cersei irá te ajudar na grande guerra!", True, GREEN)
                 else:
-                    resultado_txt = self.font.render(f"FALHA TOTAL! ({self.sucessos_diplomacia}/3)", True, RED)
+                    resultado_txt = self.font.render(f"Você não conseguiu convecer Cersei! Lute pela sua vida!", True, RED)
                 self.screen.blit(resultado_txt, (SCREEN_WIDTH // 2 - resultado_txt.get_width() // 2, pos_y + 20))
 
         elif self.state == "combat":
@@ -745,7 +819,11 @@ class Game:
             if self.mensagem_combate:
                 txt_combate = self.font.render(self.mensagem_combate, True, YELLOW)
                 self.screen.blit(txt_combate, (SCREEN_WIDTH // 2 - txt_combate.get_width() // 2, SCREEN_HEIGHT // 2))
-
+        
+        if self.flash_dano > 0:
+            overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT),pygame.SRCALPHA)
+            overlay.fill((255, 0, 0, self.flash_dano))
+            self.screen.blit(overlay, (0, 0))
         pygame.display.flip()
     def main(self):
         while self.running:
@@ -765,6 +843,11 @@ class Game:
         self.som_andar2.set_volume(self.volume_efeitos)
         self.som_andar3.set_volume(self.volume_efeitos)
         self.som_correr.set_volume(self.volume_efeitos)
+        self.som_pocao.set_volume(self.volume_efeitos)
+        self.som_selvagem.set_volume(self.volume_efeitos)
+        self.som_cersei.set_volume(self.volume_efeitos)
+        self.som_erro.set_volume(self.volume_efeitos)
+        self.som_rei.set_volume(self.volume_efeitos)
 
 if __name__ == "__main__":
     game = Game()
