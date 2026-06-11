@@ -232,12 +232,10 @@ class Game:
         self.channel_menu = pygame.mixer.Channel(0)
         self.channel_jogo = pygame.mixer.Channel(1)
 
+        self.channel_menu.stop()
+        self.channel_jogo.stop()
         self.channel_menu.play(self.music_menu, loops=-1)
-
-        self.som_andar1 = pygame.mixer.Sound('assets/audio/sound effect/andar1.mp3')
-        self.som_andar2 = pygame.mixer.Sound('assets/audio/sound effect/andar2.mp3')
-        self.som_andar3 = pygame.mixer.Sound('assets/audio/sound effect/andar3.mp3')
-        self.sons_caminhada = [self.som_andar1, self.som_andar2, self.som_andar3]
+        self.som_andar = pygame.mixer.Sound('assets/audio/sound effect/andar.mp3')
         
         self.som_correr = pygame.mixer.Sound('assets/audio/sound effect/correr.mp3')
 
@@ -246,10 +244,8 @@ class Game:
         self.som_cersei = pygame.mixer.Sound('assets/audio/sound effect/cersei.mp3')
         self.som_erro = pygame.mixer.Sound('assets/audio/sound effect/erro.mp3')
         self.som_rei = pygame.mixer.Sound('assets/audio/sound effect/rei.mp3')
+        self.som_dado = pygame.mixer.Sound('assets/audio/sound effect/dado.mp3')
         
-        self.passo_atual_index = 0
-        self.tempo_ultimo_passo = 0
-        self.tecla_pressionada_anteriormente = False
         self.correndo_anteriormente = False  
 
         self.vida_jon = 100
@@ -259,9 +255,10 @@ class Game:
         self.flash_agendado = False
         self.tempo_flash = 0
         self.flash_dano = 0
+        self.resultado_jogo = ""
 
         self.tempo_ultimo_turno = 0
-        self.intervalo_turno = 2000
+        self.intervalo_turno = 2324
 
         self.rei_despertou = False
         self.cersei_dispertou = False
@@ -277,8 +274,8 @@ class Game:
                 self.running = False
 
             if self.state == "menu":
-                self.som_correr.stop()
-                self.correndo_anteriormente = False
+                self.parar_sons_movimento()
+                self.som_andar.stop()
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_DOWN or event.key == pygame.K_s:
                         self.opcao_selecionada = (self.opcao_selecionada + 1) % len(self.opcoes_menu)
@@ -351,9 +348,18 @@ class Game:
                     elif event.key == pygame.K_RETURN:
                         if self.state == "diplomacy" and len(self.dados_rolados) < 5:
                             self.rolar_dado_diplomacia()
+                            self.som_dado.play()
                         
                         elif self.state == "combat" and self.turno_atual == "jon":
                             self.executar_ataque_jon()
+                            self.som_dado.play()
+
+            elif self.state == "gameover":
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        self.running = False
+                    elif event.key == pygame.K_RETURN:
+                        self.__init__()
 
                 if event.type == pygame.KEYUP:
                     if event.key == pygame.K_TAB and self.state == "game":
@@ -390,7 +396,7 @@ class Game:
                 self.mensagem_combate = f"Em cheio! Jon tirou {ataque_jon}"
             elif self.inimigo_atual == "rei":
                 self.som_rei.play()
-                self.vida_rei -= 10
+                self.vida_rei -= 80
                 self.mensagem_combate = f"Belo ataque! Jon tirou {ataque_jon}"
         else:
             self.som_erro.play()
@@ -400,8 +406,9 @@ class Game:
         self.tempo_ultimo_turno = pygame.time.get_ticks()
     def gerenciar_audio_passos(self):
         keys = pygame.key.get_pressed()
-        
+
         if keys[pygame.K_TAB]:
+            self.som_andar.stop()
             if self.correndo_anteriormente:
                 self.som_correr.stop()
                 self.correndo_anteriormente = False
@@ -411,31 +418,21 @@ class Game:
         se_mexeu = self.player.movendo_no_frame
 
         if se_mexeu and correndo:
+            self.som_andar.stop()
             if not self.correndo_anteriormente:
                 self.som_correr.play(loops=-1)
                 self.correndo_anteriormente = True
-            self.tecla_pressionada_anteriormente = True
-        else:
+        elif se_mexeu and not correndo:
             if self.correndo_anteriormente:
                 self.som_correr.stop()
                 self.correndo_anteriormente = False
-
-            if se_mexeu and not correndo:
-                tempo_atual = pygame.time.get_ticks()
-                intervalo_atual = 400
-                
-                if not self.tecla_pressionada_anteriormente:
-                    self.sons_caminhada[self.passo_atual_index].play()
-                    self.passo_atual_index = (self.passo_atual_index + 1) % len(self.sons_caminhada)
-                    self.tempo_ultimo_passo = tempo_atual
-                    self.tecla_pressionada_anteriormente = True
-                
-                elif tempo_atual - self.tempo_ultimo_passo > intervalo_atual:
-                    self.sons_caminhada[self.passo_atual_index].play()
-                    self.passo_atual_index = (self.passo_atual_index + 1) % len(self.sons_caminhada)
-                    self.tempo_ultimo_passo = tempo_atual
-            else:
-                self.tecla_pressionada_anteriormente = False
+            if self.som_andar.get_num_channels() == 0:
+                self.som_andar.play(loops=-1)
+        else:
+            self.som_andar.stop()
+            if self.correndo_anteriormente:
+                self.som_correr.stop()
+                self.correndo_anteriormente = False
     def gerenciar_encontros(self):
         for i in range(len(self.selvagens) - 1, -1, -1):
             selvagem = self.selvagens[i]
@@ -451,7 +448,10 @@ class Game:
                 self.tempo_flash = pygame.time.get_ticks()
                 
                 if self.vida_jon <= 0:
-                    self.running = False
+                    self.resultado_jogo = "derrota"
+                    self.state = "gameover"
+                    self.channel_jogo.stop()
+                    self.channel_jogo.play(self.music_jogo, loops=-1)
                 return 
             
         for i in range(len(self.pocao) - 1, -1, -1):
@@ -475,8 +475,9 @@ class Game:
                 self.cersei_dispertou = True
             else:
                 pass
-            self.som_correr.stop()  
-            self.correndo_anteriormente = False
+            self.player.rect.x = self.cersei.rect.x - 80
+            self.player.rect.y = self.cersei.rect.y 
+            self.parar_sons_movimento()
             self.inimigo_atual = "cersei"
             self.state = "diplomacy"
             self.dados_rolados = []
@@ -494,6 +495,8 @@ class Game:
                 self.rei_despertou = True
             else:
                 pass
+            self.player.rect.x = self.rei_noite.rect.x - 80
+            self.player.rect.y = self.rei_noite.rect.y
             self.som_correr.stop()
             self.correndo_anteriormente = False
             self.inimigo_atual = "rei"
@@ -523,39 +526,38 @@ class Game:
     def atualizar_combate(self):
         tempo_atual = pygame.time.get_ticks()
 
-        if self.turno_atual == "jon":
-            if self.inimigo_atual == "cersei" and self.vida_cersei <= 0:
-                self.mensagem_combate = "Cersei Lannister foi derrotada!"
-                self.player.rect.x -= 120  
-                self.state = "game"  
-                self.channel_jogo.stop()
-                self.channel_jogo.play(self.music_jogo, loops=-1)      
-                return
-            elif self.inimigo_atual == "rei" and self.vida_rei <= 0:
-                self.mensagem_combate = "O Rei da Noite foi derrotado!"
-                self.player.rect.x += 120
-                self.state = "game"
-                self.channel_jogo.stop()
-                self.channel_jogo.play(self.music_jogo, loops=-1)
-                return
+        if self.inimigo_atual == "cersei" and self.vida_cersei <= 0:
+            self.vida_cersei = 0
+            self.state = "game"
+            self.channel_jogo.stop()
+            self.channel_jogo.play(self.music_jogo, loops=-1)
+            return
 
-        elif self.turno_atual == "inimigo":
+        if self.inimigo_atual == "rei" and self.vida_rei <= 0:
+            self.vida_rei = 0
+            self.resultado_jogo = "vitoria"
+            self.state = "gameover"
+            self.channel_jogo.stop()
+            self.channel_jogo.play(self.music_jogo, loops=-1)
+            return
+
+        if self.turno_atual == "inimigo":
             if tempo_atual - self.tempo_ultimo_turno > self.intervalo_turno:
                 self.tempo_ultimo_turno = tempo_atual
-                
+
                 ataque_inimigo = random.randint(1, 20)
-                
+
                 if self.inimigo_atual == "cersei":
                     if ataque_inimigo >= 10:
                         self.som_selvagem.play()
                         self.flash_agendado = True
                         self.tempo_flash = pygame.time.get_ticks()
-                        self.vida_jon -= 10
+                        self.vida_jon -= 80
                         self.mensagem_combate = f"Cersei te pegou de jeito! Tirou {ataque_inimigo}"
                     else:
                         self.som_erro.play()
                         self.mensagem_combate = f"Bela esquiva! Cersei tirou {ataque_inimigo}"
-                        
+
                 elif self.inimigo_atual == "rei":
                     if ataque_inimigo >= 10:
                         self.som_selvagem.play()
@@ -567,11 +569,14 @@ class Game:
                     else:
                         self.som_erro.play()
                         self.mensagem_combate = f"Bela esquiva! O Rei da Noite tirou {ataque_inimigo}"
-                
+
                 if self.vida_jon <= 0:
-                    self.mensagem_combate = "Jon Snow caiu em combate... Game Over!"
-                    self.running = False
-                
+                    self.resultado_jogo = "derrota"
+                    self.state = "gameover"
+                    self.channel_jogo.stop()
+                    self.channel_jogo.play(self.music_jogo, loops=-1)
+                    return
+
                 self.turno_atual = "jon"
     def update(self):
         if self.state == "game":
@@ -598,7 +603,7 @@ class Game:
             if pygame.time.get_ticks() - self.tempo_flash >= 500:
 
                 self.flash_dano = 150
-                self.flash_agendado = False
+                self.flash_agendado = False  
     def draw_menu(self):
         self.screen.fill(BLACK)
 
@@ -675,6 +680,31 @@ class Game:
 
         voltar = self.font.render("ESC para voltar", True, GRAY)
         self.screen.blit(voltar, (SCREEN_WIDTH // 2 - voltar.get_width() // 2, efeitos_y + 120))
+
+        pygame.display.flip()
+    def draw_gameover(self):
+        self.screen.fill(BLACK)
+
+        font_grande = pygame.font.SysFont("Arial", 72, bold=True)
+        font_media = pygame.font.SysFont("Arial", 48, bold=True)
+        font_pequena = pygame.font.SysFont("Arial", 32)
+
+        titulo = font_grande.render("Game Over", True, WHITE)
+        self.screen.blit(titulo, (SCREEN_WIDTH // 2 - titulo.get_width() // 2, SCREEN_HEIGHT // 2 - 220))
+
+        if self.resultado_jogo == "vitoria":
+            resultado = font_media.render("Vitória!", True, GREEN)
+            resultado2 = font_media.render("Você salvou Westeros do grande inverno!", True, GREEN)
+        else:
+            resultado = font_media.render("Derrota!", True, RED)
+            resultado2 = font_media.render("Você não pode desistir ainda... Tenha determinação!", True, RED)
+        self.screen.blit(resultado, (SCREEN_WIDTH // 2 - resultado.get_width() // 2, SCREEN_HEIGHT // 2 - 120))
+        self.screen.blit(resultado2, (SCREEN_WIDTH // 2 - resultado2.get_width() // 2, SCREEN_HEIGHT // 2 - 60))
+
+        opcao1 = font_pequena.render("Aperte ESC para sair", True, WHITE)
+        opcao2 = font_pequena.render("Aperte ENTER para reiniciar", True, WHITE)
+        self.screen.blit(opcao1, (SCREEN_WIDTH // 2 - opcao1.get_width() // 2, SCREEN_HEIGHT // 2 + 100))
+        self.screen.blit(opcao2, (SCREEN_WIDTH // 2 - opcao2.get_width() // 2, SCREEN_HEIGHT // 2 + 150))
 
         pygame.display.flip()
     def draw_tactical_map(self):
@@ -836,19 +866,23 @@ class Game:
                 self.draw_config()
             elif self.state in ["game", "diplomacy", "combat"]:
                 self.draw_game()
+            elif self.state == "gameover":
+                self.draw_gameover()
 
             self.clock.tick(FPS)
     def aplicar_volume_efeitos(self):
-        self.som_andar1.set_volume(self.volume_efeitos)
-        self.som_andar2.set_volume(self.volume_efeitos)
-        self.som_andar3.set_volume(self.volume_efeitos)
+        self.som_andar.set_volume(self.volume_efeitos)
         self.som_correr.set_volume(self.volume_efeitos)
         self.som_pocao.set_volume(self.volume_efeitos)
         self.som_selvagem.set_volume(self.volume_efeitos)
         self.som_cersei.set_volume(self.volume_efeitos)
         self.som_erro.set_volume(self.volume_efeitos)
         self.som_rei.set_volume(self.volume_efeitos)
-
+        self.som_dado.set_volume(self.volume_efeitos)
+    def parar_sons_movimento(self):
+        self.som_andar.stop()
+        self.som_correr.stop()
+        self.correndo_anteriormente = False
 if __name__ == "__main__":
     game = Game()
     game.main()
