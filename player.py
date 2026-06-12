@@ -44,6 +44,7 @@ class Player:
         self.tempo_animacao_esq = 250
         self.sprite_atual_esq = 1
 
+#Requisito 2:
     def movement(self, arvores):
         keys = pygame.key.get_pressed()
         
@@ -66,8 +67,8 @@ class Player:
             move_y += 1
 
         if keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]:
-            move_x *= 15
-            move_y *= 15
+            move_x *= 1.67
+            move_y *= 1.67
             self.tempo_animacao_baixo = 125
             self.tempo_animacao_cima = 125
             self.tempo_animacao_dir = 125
@@ -155,7 +156,6 @@ class Player:
             else:
                 self.image = self.sprite_baixo1
                 self.sprite_atual_baixo = 1
-
     def animar_cima(self):
         tempo_atual = pygame.time.get_ticks()
 
@@ -175,7 +175,6 @@ class Player:
             else:
                 self.image = self.sprite_cima1
                 self.sprite_atual_cima = 1
-
     def animar_direita(self):
         tempo_atual = pygame.time.get_ticks()
 
@@ -199,7 +198,6 @@ class Player:
                 self.image = self.sprite_dir2
             elif self.sprite_atual_dir == 3:
                 self.image = self.sprite_dir3
-
     def animar_esquerda(self):
         tempo_atual = pygame.time.get_ticks()
 
@@ -223,10 +221,10 @@ class Player:
                 self.image = self.sprite_esq2
             elif self.sprite_atual_esq == 3:
                 self.image = self.sprite_esq3
-
     def update(self, arvores):
         self.movement(arvores)
 
+#Requisito 1:
     def draw_background(self, screen, camera_x, camera_y):
         start_x = max(0, (camera_x // self.tile_size) * self.tile_size)
         start_y = max(0, (camera_y // self.tile_size) * self.tile_size)
@@ -247,10 +245,8 @@ class Player:
                 if largura_corte > 0 and altura_corte > 0:
                     area_recorte = pygame.Rect(0, 0, largura_corte, altura_corte)
                     screen.blit(self.grama_image, (x - camera_x, y - camera_y), area_recorte)
-
     def draw(self, screen, camera_x=0, camera_y=0):
         screen.blit(self.image, (self.rect.x - camera_x, self.rect.y - camera_y))
-
     def check_collision(self, arvores):
         for arvore in arvores:
             

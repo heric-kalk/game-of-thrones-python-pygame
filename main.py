@@ -7,6 +7,7 @@ from player import *
 from npc import *
 
 class Game:
+#Requisito 6:
     def __init__(self):
         pygame.init()
 
@@ -228,6 +229,7 @@ class Game:
         self.music_rei = pygame.mixer.Sound('assets/audio/music/rei.mp3')
         self.music_cersei_diplomacia = pygame.mixer.Sound('assets/audio/music/cersei_diplomacia.mp3')
         self.music_cersei_combate = pygame.mixer.Sound('assets/audio/music/cersei_combate.mp3')
+        self.music_gameover = pygame.mixer.Sound('assets/audio/music/gameover.mp3')
 
         self.channel_menu = pygame.mixer.Channel(0)
         self.channel_jogo = pygame.mixer.Channel(1)
@@ -268,6 +270,7 @@ class Game:
         self.mensagem_combate = ""
         self.turno_atual = "jon"
         self.inimigo_atual = ""
+
     def events(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -396,7 +399,7 @@ class Game:
                 self.mensagem_combate = f"Em cheio! Jon tirou {ataque_jon}"
             elif self.inimigo_atual == "rei":
                 self.som_rei.play()
-                self.vida_rei -= 80
+                self.vida_rei -= 10
                 self.mensagem_combate = f"Belo ataque! Jon tirou {ataque_jon}"
         else:
             self.som_erro.play()
@@ -451,7 +454,7 @@ class Game:
                     self.resultado_jogo = "derrota"
                     self.state = "gameover"
                     self.channel_jogo.stop()
-                    self.channel_jogo.play(self.music_jogo, loops=-1)
+                    self.channel_jogo.play(self.music_gameover, loops=-1)
                 return 
             
         for i in range(len(self.pocao) - 1, -1, -1):
@@ -489,6 +492,7 @@ class Game:
                          (self.player.rect.y - self.rei_noite.rect.y) ** 2) ** 0.5
 
         if distancia_rei <= 80 and self.vida_rei > 0 and (self.vida_cersei <= 0 or self.vida_sucesso == 1):
+            self.parar_sons_movimento()
             if self.rei_despertou == False:
                 self.channel_jogo.stop()
                 self.channel_jogo.play(self.music_rei, loops=-1)
@@ -504,6 +508,8 @@ class Game:
             self.state = "combat"
             self.turno_atual = "jon"
             self.tempo_ultimo_turno = pygame.time.get_ticks()
+
+#Requisito 3:
     def atualizar_diplomacia(self):
         tempo_atual = pygame.time.get_ticks()
 
@@ -523,7 +529,10 @@ class Game:
                     self.tempo_ultimo_turno = pygame.time.get_ticks()
                     self.channel_jogo.stop()
                     self.channel_jogo.play(self.music_cersei_combate, loops=-1)
+
+#Requisito 4:
     def atualizar_combate(self):
+        
         tempo_atual = pygame.time.get_ticks()
 
         if self.inimigo_atual == "cersei" and self.vida_cersei <= 0:
@@ -538,7 +547,7 @@ class Game:
             self.resultado_jogo = "vitoria"
             self.state = "gameover"
             self.channel_jogo.stop()
-            self.channel_jogo.play(self.music_jogo, loops=-1)
+            self.channel_jogo.play(self.music_gameover, loops=-1)
             return
 
         if self.turno_atual == "inimigo":
@@ -552,12 +561,12 @@ class Game:
                         self.som_selvagem.play()
                         self.flash_agendado = True
                         self.tempo_flash = pygame.time.get_ticks()
-                        self.vida_jon -= 80
+                        self.vida_jon -= 10
                         self.mensagem_combate = f"Cersei te pegou de jeito! Tirou {ataque_inimigo}"
                     else:
                         self.som_erro.play()
                         self.mensagem_combate = f"Bela esquiva! Cersei tirou {ataque_inimigo}"
-
+                        
                 elif self.inimigo_atual == "rei":
                     if ataque_inimigo >= 10:
                         self.som_selvagem.play()
@@ -574,10 +583,11 @@ class Game:
                     self.resultado_jogo = "derrota"
                     self.state = "gameover"
                     self.channel_jogo.stop()
-                    self.channel_jogo.play(self.music_jogo, loops=-1)
+                    self.channel_jogo.play(self.music_gameover, loops=-1)
                     return
 
                 self.turno_atual = "jon"
+
     def update(self):
         if self.state == "game":
             self.player.update(self.arvores)
@@ -682,7 +692,9 @@ class Game:
         self.screen.blit(voltar, (SCREEN_WIDTH // 2 - voltar.get_width() // 2, efeitos_y + 120))
 
         pygame.display.flip()
+#Requisito 9:
     def draw_gameover(self):
+             
         self.screen.fill(BLACK)
 
         font_grande = pygame.font.SysFont("Arial", 72, bold=True)
@@ -707,7 +719,9 @@ class Game:
         self.screen.blit(opcao2, (SCREEN_WIDTH // 2 - opcao2.get_width() // 2, SCREEN_HEIGHT // 2 + 150))
 
         pygame.display.flip()
+
     def draw_tactical_map(self):
+        
         self.screen.fill(BLACK)
 
         margem_w = 40
@@ -770,6 +784,7 @@ class Game:
         pygame.draw.rect(self.screen, COR_JON_MINI, (player_mini_x - 7, player_mini_y - 7, 14, 14))
 
         pygame.display.flip()
+#Requisito 5:
     def draw_game(self):
         keys = pygame.key.get_pressed()
         if keys[pygame.K_TAB]:
@@ -855,7 +870,9 @@ class Game:
             overlay.fill((255, 0, 0, self.flash_dano))
             self.screen.blit(overlay, (0, 0))
         pygame.display.flip()
+
     def main(self):
+        
         while self.running:
             self.events()
             self.update()
